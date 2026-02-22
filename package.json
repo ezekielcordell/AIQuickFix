@@ -1,7 +1,6 @@
 {
     "activationEvents": [
         "onStartupFinished",
-        "onLanguage:*",
         "onCommand:aiQuickFix.runFixer"
     ],
     "bugs": {

@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-- No changes yet.
+- Removed wildcard activation event (`onLanguage:*`) to avoid invalid `*` Marketplace tag during publish.
 
 ## [0.1.4] - 2026-02-22
 
