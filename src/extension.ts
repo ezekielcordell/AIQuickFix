@@ -4,6 +4,7 @@ import * as vscode from "vscode";
 
 type FixerId = "codex" | "claude" | "codex-cli" | "claude-cli";
 type CliFixerId = "codex-cli" | "claude-cli";
+type CliOutputMode = "minimal" | "verbose";
 
 interface RunFixerArgs {
     fixerId?: FixerId;
@@ -32,6 +33,7 @@ interface CliRoute {
 
 interface CliSettings {
     enableWslRoutes: boolean;
+    outputMode: CliOutputMode;
 }
 
 interface ProcessResult {
@@ -57,6 +59,7 @@ const CLI_PROBE_TIMEOUT_MS = 3000;
 const CLI_RUN_TIMEOUT_MS = 180000;
 const MAX_PROCESS_OUTPUT_CHARS = 12000;
 const MAX_BOX_CONTENT_CHARS = 4000;
+const MAX_MINIMAL_SUMMARY_CHARS = 220;
 const OUTPUT_BOX_WIDTH = 100;
 const MAX_FAILURE_SUMMARY_LINES = 8;
 
@@ -159,10 +162,14 @@ async function getEnabledFixers(): Promise<FixerSpec[]> {
     const claudeCli = parseBoolean(config.get<unknown>("claude-cli"), false);
     const enabled: FixerSpec[] = [];
 
-    if (codex) {
+    if (codex && (await isCommandAvailable(CODEX_COMMAND))) {
         enabled.push(FIXERS.codex);
     }
-    if (claude) {
+    if (
+        claude &&
+        ((await isCommandAvailable(CLAUDE_EDITOR_COMMAND)) ||
+            (await isCommandAvailable(CLAUDE_TERMINAL_COMMAND)))
+    ) {
         enabled.push(FIXERS.claude);
     }
     if (codexCli && (await getCliRoute("codex-cli"))) {
@@ -274,6 +281,7 @@ async function runCliFix(
     prompt: string,
     fixerId: CliFixerId,
 ): Promise<void> {
+    const cliSettings = getCliSettings();
     const baseRoute = await getCliRoute(fixerId);
     if (!baseRoute) {
         throw new Error(
@@ -313,16 +321,26 @@ async function runCliFix(
 
         if (isProcessSuccess(result)) {
             await setCachedCliRoute(fixerId, route);
-            appendOutputBox(`${FIXERS[fixerId].label} Quick Fix`, [
-                { heading: "Route", content: route.display },
-                { heading: "Prompt", content: cliPrompt },
-                {
-                    heading: "CLI Output",
-                    content:
-                        getProcessOutputText(result) ||
-                        "(command returned no output)",
-                },
-            ]);
+            if (cliSettings.outputMode === "verbose") {
+                appendOutputBox(`${FIXERS[fixerId].label} Quick Fix`, [
+                    { heading: "Route", content: route.display },
+                    { heading: "Prompt", content: cliPrompt },
+                    {
+                        heading: "CLI Output",
+                        content:
+                            getProcessOutputText(result) ||
+                            "(command returned no output)",
+                    },
+                ]);
+            } else {
+                appendOutputBox(`${FIXERS[fixerId].label} Quick Fix`, [
+                    { heading: "Route", content: route.display },
+                    {
+                        heading: "Result",
+                        content: getMinimalProcessSummary(result),
+                    },
+                ]);
+            }
             return;
         }
 
@@ -341,13 +359,22 @@ async function runCliFix(
         failures.length > 0
             ? failures[0]
             : "no executable command route was accepted.";
-    appendOutputBox(`${FIXERS[fixerId].label} Quick Fix Failed`, [
-        { heading: "Prompt", content: cliPrompt },
-        {
-            heading: "Route Failures",
-            content: summarizeFailures(failures),
-        },
-    ]);
+    if (cliSettings.outputMode === "verbose") {
+        appendOutputBox(`${FIXERS[fixerId].label} Quick Fix Failed`, [
+            { heading: "Prompt", content: cliPrompt },
+            {
+                heading: "Route Failures",
+                content: summarizeFailures(failures),
+            },
+        ]);
+    } else {
+        appendOutputBox(`${FIXERS[fixerId].label} Quick Fix Failed`, [
+            {
+                heading: "Route Failures",
+                content: summarizeFailures(failures),
+            },
+        ]);
+    }
     throw new Error(`${FIXERS[fixerId].label} failed: ${summary}`);
 }
 
@@ -410,7 +437,7 @@ async function assertCommandAvailable(
 
 function buildCliPrompt(uri: vscode.Uri, basePrompt: string): string {
     const filePath = vscode.workspace.asRelativePath(uri, false) || uri.fsPath;
-    return `File: ${filePath}\n${basePrompt}\nApply the minimal quick fix by editing workspace files directly. Save changes, then return a one-line summary.`;
+    return `File: ${filePath}\n${basePrompt}\nApply the minimal quick fix by editing workspace files directly.\nOutput rules: do not print file contents, diffs, markdown, or explanations.\nReturn exactly one short line in this format: DONE: <very short summary>.`;
 }
 
 function parseBoolean(value: unknown, fallback: boolean): boolean {
@@ -424,7 +451,12 @@ function getCliSettings(): CliSettings {
             config.get<unknown>("enable-wsl-routes"),
             true,
         ),
+        outputMode: parseCliOutputMode(config.get<unknown>("cli-output-mode")),
     };
+}
+
+function parseCliOutputMode(value: unknown): CliOutputMode {
+    return value === "verbose" ? "verbose" : "minimal";
 }
 
 function getDiscoveryPreferredRouteId(
@@ -993,6 +1025,27 @@ function getProcessOutputText(result: ProcessResult): string {
     return truncateForBox(parts.join("\n\n"), MAX_BOX_CONTENT_CHARS);
 }
 
+function getMinimalProcessSummary(result: ProcessResult): string {
+    const lines = `${result.stdout}\n${result.stderr}`
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0);
+
+    const preferred =
+        lines.find((line) => /^done:/i.test(line)) ??
+        lines.find((line) => /^summary:/i.test(line)) ??
+        lines[0];
+
+    if (!preferred) {
+        return "DONE: quick fix applied.";
+    }
+
+    return truncateInline(
+        preferred.replace(/\s+/g, " "),
+        MAX_MINIMAL_SUMMARY_CHARS,
+    );
+}
+
 function summarizeFailures(failures: string[]): string {
     if (failures.length === 0) {
         return "No route failures were captured.";
@@ -1064,6 +1117,13 @@ function truncateForBox(content: string, maxChars: number): string {
 
     const remaining = content.length - maxChars;
     return `${content.slice(0, maxChars)}\n... [truncated ${remaining} chars]`;
+}
+
+function truncateInline(content: string, maxChars: number): string {
+    if (content.length <= maxChars) {
+        return content;
+    }
+    return `${content.slice(0, maxChars)}...`;
 }
 
 export function deactivate(): void {

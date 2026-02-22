@@ -36,7 +36,8 @@ Set these in `settings.json`:
     "ai-quick-fix.claude": true,
     "ai-quick-fix.codex-cli": false,
     "ai-quick-fix.claude-cli": false,
-    "ai-quick-fix.enable-wsl-routes": true
+    "ai-quick-fix.enable-wsl-routes": true,
+    "ai-quick-fix.cli-output-mode": "minimal"
 }
 ```
 
@@ -45,6 +46,7 @@ Set these in `settings.json`:
 - `ai-quick-fix.codex-cli`: enable/disable Codex CLI quick fix.
 - `ai-quick-fix.claude-cli`: enable/disable Claude CLI quick fix.
 - `ai-quick-fix.enable-wsl-routes`: enable/disable WSL route probing and execution.
+- `ai-quick-fix.cli-output-mode`: `minimal` (default) shows only route + one-line result; `verbose` shows prompt and captured CLI output.
 
 ## Behavior
 
@@ -58,7 +60,8 @@ Set these in `settings.json`:
 - CLI fixers are shown only when a working route is detected.
 - CLI route discovery checks native command, `bash`, `wsl --exec`, and `wsl bash`, then persists the working route.
 - Codex CLI routes prioritize writable execution (`--sandbox workspace-write`) and auto-fallback if output reports a read-only sandbox.
-- CLI output is shown in a structured input/output box in the extension output channel.
+- CLI prompt explicitly asks for one short status line and avoids file/diff echo to reduce output tokens.
+- CLI output defaults to minimal one-line summary mode in the extension output channel; enable verbose mode for debugging.
 
 ## Hardcoded extension routing
 
