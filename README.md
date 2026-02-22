@@ -4,28 +4,6 @@ Adds extension-based Quick Fix actions in the form:
 
 - `Fix With "<name>"`
 
-## Publish To VS Code Marketplace
-
-Publish scripts use `npx` with a temporary Node 20 runtime, so your global Node version does not block packaging/publishing.
-
-1. Confirm `publisher` in `package.json` matches your Marketplace publisher ID.
-2. Optional but recommended: add `repository`, `bugs`, and `homepage` links in `package.json`.
-3. Create a publisher:
-    - Go to https://marketplace.visualstudio.com/manage
-4. Create a Personal Access Token (PAT) in Azure DevOps:
-    - Scope: `Marketplace (Manage)`
-5. Login once from this project:
-    - `npm run publish:login -- <publisher-id>`
-6. Build and package:
-    - `npm run build`
-    - `npm run package`
-7. Publish:
-    - Patch release: `npm run publish:patch`
-    - Minor release: `npm run publish:minor`
-    - Major release: `npm run publish:major`
-
-Generated `.vsix` files can also be shared directly for manual install.
-
 ## Settings
 
 Set these in `settings.json`:
