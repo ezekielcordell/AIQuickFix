@@ -4,6 +4,8 @@ Adds extension-based Quick Fix actions in the form:
 
 - `Fix With "<name>"`
 
+Maintainers: publish workflow is documented in `README.github.md`.
+
 ## Settings
 
 Set these in `settings.json`:
