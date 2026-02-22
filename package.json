@@ -97,6 +97,7 @@
     "scripts": {
         "build": "tsc -p ./",
         "package": "npx -y -p node@20 -p @vscode/vsce@3.7.1 vsce package --allow-missing-repository",
+        "publish": "npx -y -p node@20 -p @vscode/vsce@3.7.1 vsce publish --allow-missing-repository",
         "publish:login": "npx -y -p node@20 -p @vscode/vsce@3.7.1 vsce login",
         "publish:major": "npx -y -p node@20 -p @vscode/vsce@3.7.1 vsce publish major --allow-missing-repository",
         "publish:minor": "npx -y -p node@20 -p @vscode/vsce@3.7.1 vsce publish minor --allow-missing-repository",

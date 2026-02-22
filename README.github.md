@@ -25,11 +25,10 @@ npm run publish:login -- ezekielcordell
 npm version patch --no-git-tag-version
 ```
 
-4. Build and package:
+4. Build:
 
 ```bash
 npm run build
-npm run package
 ```
 
 5. Commit and push release changes:
@@ -40,10 +39,10 @@ git commit -m "Release x.y.z"
 git push origin main
 ```
 
-6. Publish exactly the current version in `package.json`:
+6. Publish exactly the current version in `package.json` (no manual `.vsix` step):
 
 ```bash
-npx -y -p node@20 -p @vscode/vsce@3.7.1 vsce publish --allow-missing-repository
+npm run publish
 ```
 
 ### Alternative publish commands

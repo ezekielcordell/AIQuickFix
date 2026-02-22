@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-- No changes yet.
+- Added a direct `npm run publish` script that publishes without requiring a manual `.vsix` packaging step.
 
 ## [0.1.5] - 2026-02-22
 
