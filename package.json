@@ -1,0 +1,85 @@
+{
+    "activationEvents": [
+        "onStartupFinished",
+        "onLanguage:*",
+        "onCommand:aiQuickFix.runFixer"
+    ],
+    "categories": [
+        "Other"
+    ],
+    "contributes": {
+        "commands": [
+            {
+                "command": "aiQuickFix.runFixer",
+                "title": "AI Quick Fix: Run Fixer"
+            }
+        ],
+        "configuration": {
+            "properties": {
+                "ai-quick-fix.claude": {
+                    "default": true,
+                    "description": "Enable Claude quick fixes.",
+                    "type": "boolean"
+                },
+                "ai-quick-fix.claude-cli": {
+                    "default": false,
+                    "description": "Enable Claude CLI quick fixes. Option appears only if a working CLI route is detected.",
+                    "type": "boolean"
+                },
+                "ai-quick-fix.codex": {
+                    "default": true,
+                    "description": "Enable Codex quick fixes.",
+                    "type": "boolean"
+                },
+                "ai-quick-fix.codex-cli": {
+                    "default": false,
+                    "description": "Enable Codex CLI quick fixes. Option appears only if a working CLI route is detected.",
+                    "type": "boolean"
+                },
+                "ai-quick-fix.enable-wsl-routes": {
+                    "default": true,
+                    "description": "Allow WSL-based CLI route probing and execution. Disable to avoid WSL startup overhead.",
+                    "type": "boolean"
+                }
+            },
+            "title": "AI Quick Fix"
+        }
+    },
+    "description": "Lean diagnostic quick fixes routed to extension or CLI targets with minimal prompt payloads.",
+    "devDependencies": {
+        "@types/node": "^20.19.33",
+        "@types/vscode": "^1.74.0",
+        "typescript": "^5.5.4"
+    },
+    "displayName": "AI Quick Fix",
+    "engines": {
+        "vscode": "^1.74.0"
+    },
+    "files": [
+        "out/**",
+        "README.md",
+        "LICENSE"
+    ],
+    "keywords": [
+        "ai",
+        "quick-fix",
+        "diagnostics",
+        "codex",
+        "claude"
+    ],
+    "license": "MIT",
+    "main": "./out/extension.js",
+    "name": "ai-quick-fix",
+    "publisher": "Zeek0f0",
+    "scripts": {
+        "build": "tsc -p ./",
+        "package": "npx -y -p node@20 -p @vscode/vsce@3.7.1 vsce package --allow-missing-repository",
+        "publish:login": "npx -y -p node@20 -p @vscode/vsce@3.7.1 vsce login",
+        "publish:major": "npx -y -p node@20 -p @vscode/vsce@3.7.1 vsce publish major --allow-missing-repository",
+        "publish:minor": "npx -y -p node@20 -p @vscode/vsce@3.7.1 vsce publish minor --allow-missing-repository",
+        "publish:patch": "npx -y -p node@20 -p @vscode/vsce@3.7.1 vsce publish patch --allow-missing-repository",
+        "vscode:prepublish": "npm run build",
+        "watch": "tsc -watch -p ./"
+    },
+    "version": "0.1.0"
+}
