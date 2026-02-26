@@ -57,6 +57,8 @@ const CLAUDE_TERMINAL_COMMAND = "claude-vscode.terminal.open";
 const CLI_ROUTE_STATE_KEY = "aiQuickFix.cliRouteByFixer.v1";
 const CLI_PROBE_TIMEOUT_MS = 3000;
 const CLI_RUN_TIMEOUT_MS = 180000;
+const AI_QUICK_FIX_ACTION_KIND =
+    vscode.CodeActionKind.QuickFix.append("zzz-ai-quick-fix");
 const MAX_PROCESS_OUTPUT_CHARS = 12000;
 const MAX_BOX_CONTENT_CHARS = 4000;
 const MAX_MINIMAL_SUMMARY_CHARS = 220;
@@ -83,7 +85,12 @@ export function activate(context: vscode.ExtensionContext): void {
     const provider = vscode.languages.registerCodeActionsProvider(
         { scheme: "file" },
         new AiQuickFixProvider(),
-        { providedCodeActionKinds: [vscode.CodeActionKind.QuickFix] },
+        {
+            providedCodeActionKinds: [
+                vscode.CodeActionKind.QuickFix,
+                AI_QUICK_FIX_ACTION_KIND,
+            ],
+        },
     );
 
     const runFixer = vscode.commands.registerCommand(
@@ -130,7 +137,7 @@ class AiQuickFixProvider implements vscode.CodeActionProvider {
             for (const fixer of fixers) {
                 const action = new vscode.CodeAction(
                     `Fix With "${fixer.label}"`,
-                    vscode.CodeActionKind.QuickFix,
+                    AI_QUICK_FIX_ACTION_KIND,
                 );
                 action.isPreferred = false;
                 action.diagnostics = [diagnostic];
