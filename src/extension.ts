@@ -12,6 +12,7 @@ interface RunFixerArgs {
     uri: vscode.Uri;
     range: vscode.Range;
     diagnosticMessage?: string;
+    diagnosticMessages?: string[];
 }
 
 interface FixerSpec {
@@ -59,6 +60,7 @@ const CLI_PROBE_TIMEOUT_MS = 3000;
 const CLI_RUN_TIMEOUT_MS = 180000;
 const AI_QUICK_FIX_ACTION_KIND =
     vscode.CodeActionKind.QuickFix.append("zzz-ai-quick-fix");
+const QUICK_FIX_HIDDEN_SORT_PREFIX = "\u2063\u2063\u2063";
 const MAX_PROCESS_OUTPUT_CHARS = 12000;
 const MAX_BOX_CONTENT_CHARS = 4000;
 const MAX_MINIMAL_SUMMARY_CHARS = 220;
@@ -132,33 +134,75 @@ class AiQuickFixProvider implements vscode.CodeActionProvider {
         }
 
         const actions: vscode.CodeAction[] = [];
+        const targetDiagnostic = selectTargetDiagnostic(
+            context.diagnostics,
+            range,
+        );
+        const targetLine =
+            targetDiagnostic?.range.start.line ?? range.start.line;
+        const diagnosticMessages = collectLineDiagnosticMessages(
+            context.diagnostics,
+            targetLine,
+        );
 
-        for (const diagnostic of context.diagnostics) {
-            for (const fixer of fixers) {
-                const action = new vscode.CodeAction(
-                    `Fix With "${fixer.label}"`,
-                    AI_QUICK_FIX_ACTION_KIND,
-                );
-                action.isPreferred = false;
-                action.diagnostics = [diagnostic];
-                action.command = {
-                    command: "aiQuickFix.runFixer",
-                    title: `Run fixer ${fixer.label}`,
-                    arguments: [
-                        {
-                            fixerId: fixer.id,
-                            uri: document.uri,
-                            range: diagnostic.range ?? range,
-                            diagnosticMessage: diagnostic.message,
-                        } satisfies RunFixerArgs,
-                    ],
-                };
-                actions.push(action);
-            }
+        for (const fixer of fixers) {
+            const action = new vscode.CodeAction(
+                `${QUICK_FIX_HIDDEN_SORT_PREFIX}Fix With "${fixer.label}"`,
+                AI_QUICK_FIX_ACTION_KIND,
+            );
+            action.isPreferred = false;
+            action.command = {
+                command: "aiQuickFix.runFixer",
+                title: `Run fixer ${fixer.label}`,
+                arguments: [
+                    {
+                        fixerId: fixer.id,
+                        uri: document.uri,
+                        range: targetDiagnostic?.range ?? range,
+                        diagnosticMessage: targetDiagnostic?.message,
+                        diagnosticMessages,
+                    } satisfies RunFixerArgs,
+                ],
+            };
+            actions.push(action);
         }
 
         return actions;
     }
+}
+
+function selectTargetDiagnostic(
+    diagnostics: readonly vscode.Diagnostic[],
+    range: vscode.Range,
+): vscode.Diagnostic | undefined {
+    return (
+        diagnostics.find((diagnostic) =>
+            diagnostic.range.contains(range.start),
+        ) ?? diagnostics[0]
+    );
+}
+
+function collectLineDiagnosticMessages(
+    diagnostics: readonly vscode.Diagnostic[],
+    line: number,
+): string[] {
+    const unique = new Set<string>();
+    for (const diagnostic of diagnostics) {
+        if (
+            diagnostic.range.start.line <= line &&
+            line <= diagnostic.range.end.line
+        ) {
+            const normalized = normalizeDiagnosticMessage(diagnostic.message);
+            if (normalized) {
+                unique.add(normalized);
+            }
+        }
+    }
+    return [...unique];
+}
+
+function normalizeDiagnosticMessage(message: string): string {
+    return message.replace(/\s+/g, " ").trim();
 }
 
 async function getEnabledFixers(): Promise<FixerSpec[]> {
@@ -389,11 +433,25 @@ async function buildPrompt(args: RunFixerArgs): Promise<PromptSpec> {
     const document = await vscode.workspace.openTextDocument(args.uri);
     const line = clampLineNumber(document, args.range.start.line) + 1;
     const locationLine = document.lineAt(line - 1).text || "(empty line)";
-    const diagnostic = args.diagnosticMessage?.trim() || "(none provided)";
+    const diagnostics = resolveDiagnosticMessages(args);
     return {
         line,
-        prompt: `Diagnostic: ${diagnostic}\nLine: ${line}\nCode: ${locationLine}`,
+        prompt:
+            `Diagnostics:\n${diagnostics.map((message) => `- ${message}`).join("\n")}\n` +
+            `Line: ${line}\nCode: ${locationLine}`,
     };
+}
+
+function resolveDiagnosticMessages(args: RunFixerArgs): string[] {
+    const fromList = (args.diagnosticMessages ?? [])
+        .map((message) => normalizeDiagnosticMessage(message))
+        .filter((message) => message.length > 0);
+    if (fromList.length > 0) {
+        return [...new Set(fromList)];
+    }
+
+    const fallback = normalizeDiagnosticMessage(args.diagnosticMessage ?? "");
+    return fallback ? [fallback] : ["(none provided)"];
 }
 
 function clampLineNumber(

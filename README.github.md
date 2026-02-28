@@ -13,6 +13,7 @@ This file is for repository maintainers and is not shipped in the VSIX package.
 
 ```bash
 npm run publish:login -- ezekielcordell
+
 ```
 
 ### Standard release flow
@@ -23,12 +24,14 @@ npm run publish:login -- ezekielcordell
 
 ```bash
 npm version patch --no-git-tag-version
+
 ```
 
 4. Build:
 
 ```bash
 npm run build
+
 ```
 
 5. Commit and push release changes:
@@ -37,12 +40,14 @@ npm run build
 git add .
 git commit -m "Release x.y.z"
 git push origin main
+
 ```
 
 6. Publish exactly the current version in `package.json` (no manual `.vsix` step):
 
 ```bash
 npm run publish
+
 ```
 
 ### Alternative publish commands
@@ -51,23 +56,26 @@ npm run publish
 
 ```bash
 npm run publish:patch
+
 ```
 
 - Auto minor bump:
 
 ```bash
 npm run publish:minor
+
 ```
 
 - Auto major bump:
 
 ```bash
 npm run publish:major
+
 ```
 
 ### Common errors
 
 - `TF400813 ... not authorized`
-: PAT is invalid/expired or missing required scope. Run login again.
+  : PAT is invalid/expired or missing required scope. Run login again.
 - `The supplied tag '*' is not a valid tag`
-: Ensure no wildcard tags leak into package metadata (for this project, avoid `onLanguage:*` activation event).
+  : Ensure no wildcard tags leak into package metadata (for this project, avoid `onLanguage:*` activation event).
